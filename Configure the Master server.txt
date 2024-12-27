@@ -1,0 +1,95 @@
+Configure the Master server
+============================
+
+MySQL ထဲကိုဝင် ပြီးရင် 
+
+-- Enable Binary Logging and Set Server ID ဒါသက်မှက်ပေး။ Slave မှာ 2 လို့ ကျတော်ပေးထားပြီး ပြီ ။ 
+
+SET GLOBAL server_id = 1;
+
+-- Create a Replication User 
+
+CREATE USER 'repl'@'%' IDENTIFIED BY 'replpassword';
+
+
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';
+
+FLUSH PRIVILEGES;
+
+-- Verify Binary Log Position
+
+SHOW MASTER STATUS;      ဒီအဆင့်မှာ မှက်ထားရမှာ ရှိတယ် Slave ကချိတ်ဖို့ ..( File          | Position) value ကိုမှက်ထာား 
+
+======================================================
+
+Slave server မှာက ကျတော် ဒီလို လုပ်ထားပြီး ပြီ။ 
+
+docker run --name mysql-slave -d -e MYSQL_ROOT_PASSWORD=slavepassword -v mysql-slave-data:/var/lib/mysql -p 3307:3306 mysql:latest
+
+
+docker exec -it mysql-slave mysql -u root -p    (ဒါနဲ့ ဝင်လိုက်နော်) 107.148.47.94 ဒီ server ) slavepassword  <== ဒါက Password ) 
+
+-- Configure Server ID for Slave
+SET GLOBAL server_id = 2;			(ဒါမမှန်ရင် Replica_IO_Running: No ဖြစ်တယ် ။ 
+
+
+mysql> CHANGE REPLICATION SOURCE TO
+    -> SOURCE_HOST='104.233.167.194',
+    -> SOURCE_USER='repl',
+    -> SOURCE_PASSWORD='replpassword',
+    -> SOURCE_LOG_FILE='master.000013',
+    -> SOURCE_LOG_POS=1308973;  		( ဒီ ဟာကပြောင်း တက်တယ် SHOW MASTER STATUS  ပြန် စစ်သင့်တယ်) အဲ့ဒါမမှန်ရင် status (Replica_SQL_Running) No ဖြစ်နေရာ။ 
+
+
+
+-- Start Replication
+
+START REPLICA;   			(ဒီဟာမရရင် ) START REPLICA;  ဒါသုံးနော် 
+
+SHOW REPLICA STATUS\G;
+
+Master ==> slave က ဒါဆိုရပြီ 
+
+
+filter add those table from master 
+
+replicate_do_table=app.app_movie
+replicate_do_table=app.app_movie_addr
+replicate_do_table=app.app_movie_carousel
+replicate_do_table=app.app_movie_member
+replicate_do_table=app.app_movie_member_relation
+replicate_do_table=app.app_movie_ranking
+replicate_do_table=app.app_movie_recommend
+replicate_do_table=app.app_movie_tag
+replicate_do_table=app.app_movie_tag_relation
+replicate_do_table=app.app_movie_topic
+replicate_do_table=app.app_movie_topic_relation
+replicate_do_table=app.app_movie_type
+replicate_do_table=app.app_post
+replicate_do_table=app.app_user
+
+using my.cnf
+
+
+==========================================================
+s
+ဒါကကိုချစ် ပြော တဲ့ Table Filter လုပ်တဲ့ ဟာ  ဒါက COMMAND နဲ့ တာ 
+
+Enable Table Filtering on the Slave
+
+STOP SLAVE;
+
+Add replication filters (only replicate specific tables):
+
+SET GLOBAL replicate_do_table='app_movie';  
+
+START SLAVE;
+
+
+
+
+
+
+
+
+
